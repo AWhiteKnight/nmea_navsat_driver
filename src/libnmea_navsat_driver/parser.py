@@ -102,16 +102,16 @@ list of tuples where each tuple is a field name, conversion function and index
 into the split sentence"""
 parse_maps = {
     "GGA": [
-        ("fix_type", int, 6),
+        ("utc_time", convert_time, 1),
         ("latitude", convert_latitude, 2),
         ("latitude_direction", str, 3),
         ("longitude", convert_longitude, 4),
         ("longitude_direction", str, 5),
+        ("fix_type", int, 6),
+        ("num_satellites", safe_int, 7),
+        ("hdop", safe_float, 8),
         ("altitude", safe_float, 9),
         ("mean_sea_level", safe_float, 11),
-        ("hdop", safe_float, 8),
-        ("num_satellites", safe_int, 7),
-        ("utc_time", convert_time, 1),
     ],
     "RMC": [
         ("utc_time", convert_time, 1),
@@ -145,8 +145,14 @@ parse_maps = {
 
 def parse_nmea_sentence(nmea_sentence):
     # Check for a valid nmea sentence
-
-    if not re.match(r'(^\$GP|^\$GN|^\$GL|^\$IN).*\*[0-9A-Fa-f]{2}$', nmea_sentence):
+    # GN = combined position data of multiple GNSS
+    # GP = GPS data
+    # BD = Beidou data
+    # GL = GLONASS data
+    # GA = Galileo data
+    # P? = proprietary extensions
+    # added Beidou (BD), Galileo (GA)
+    if not re.match(r'(^\$GP|^\$GN|^\$GL|^\$GA|^\$BD|^\$IN).*\*[0-9A-Fa-f]{2}$', nmea_sentence):
         logger.debug("Regex didn't match, sentence not valid NMEA? Sentence was: %s"
                      % repr(nmea_sentence))
         return False

@@ -30,12 +30,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import sys
+import signal
+
 import serial
 
 import rclpy
 
 from libnmea_navsat_driver.driver import Ros2NMEADriver
 
+from libnmea_navsat_driver.chipsets.quectel import quectel_serial_init
+from libnmea_navsat_driver.chipsets.quectel import quectel_serial_reset
 
 def main(args=None):
     rclpy.init(args=args)
@@ -45,9 +50,18 @@ def main(args=None):
 
     serial_port = driver.declare_parameter('port', '/dev/ttyUSB0').value
     serial_baud = driver.declare_parameter('baud', 4800).value
+    gnss_chipset = driver.declare_parameter('chipset', '').value
 
     try:
         GPS = serial.Serial(port=serial_port, baudrate=serial_baud, timeout=2)
+        if gnss_chipset == 'quectel':
+            driver.get_logger().info("Device with chipset '%s' given" % gnss_chipset)
+            GPS = quectel_serial_init(GPS, driver)
+
+        # register signal handler for cleanup before exits
+        signals = SignalHandler(GPS, driver, gnss_chipset)
+        signal.signal(signal.SIGINT, signals.handle_sigint)
+
         try:
             while rclpy.ok():
                 data = GPS.readline().strip()
@@ -63,6 +77,26 @@ def main(args=None):
 
         except Exception as e:
             driver.get_logger().error("Ros error: {0}".format(e))
-            GPS.close()  # Close GPS serial port
+            if gnss_chipset == 'quectel':
+                quectel_serial_reset(GPS)
+
+        GPS.close()  # Close GPS serial port
     except serial.SerialException as ex:
         driver.get_logger().fatal("Could not open serial port: I/O error({0}): {1}".format(ex.errno, ex.strerror))
+
+
+
+class SignalHandler:
+    def __init__(self, gps, driver, chipset):
+        self.GPS = gps
+        self.driver = driver
+        self.chipset = chipset
+
+    def handle_sigint(self, sig, frame):
+        if self.chipset == 'quectel':
+            quectel_serial_reset(self.GPS, self.driver)
+        self.GPS.close()  # Close GPS serial port
+
+        rclpy.shutdown()
+        sys.exit(0)
+

@@ -173,8 +173,12 @@ class Ros2NMEADriver(Node):
                 longitude = -longitude
             current_fix.longitude = longitude
 
+            # specification of GGA says:
+            #   9) Antenna Altitude above/below mean-sea-level (geoid)
+            # so the correction of elipsoid is already included 
+            altitude = data['altitude']
             # Altitude is above ellipsoid, so adjust for mean-sea-level
-            altitude = data['altitude'] + data['mean_sea_level']
+            ##altitude = data['altitude'] + data['mean_sea_level']
             current_fix.altitude = altitude
 
             # use default epe std_dev unless we've received a GST sentence with epes

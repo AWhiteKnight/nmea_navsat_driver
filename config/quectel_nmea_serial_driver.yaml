@@ -1,0 +1,9 @@
+nmea_navsat_driver:
+  ros__parameters:
+    port: "/dev/ttyS0"
+    baud: 9600
+    frame_id: "gnss"
+    time_ref_source: "gnss"
+    useRMC: False
+    chipset: "quectel"
+    useGalileoGLONASS: True
